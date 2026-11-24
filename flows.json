@@ -1,0 +1,276 @@
+[
+    {
+        "id": "flow_rest_api_09",
+        "type": "tab",
+        "label": "REST API IoT",
+        "disabled": false,
+        "info": "Praktikum 9 REST API Node-RED"
+    },
+    {
+        "id": "mqtt_sensor_09",
+        "type": "mqtt in",
+        "z": "flow_rest_api_09",
+        "name": "Subscribe Sensor",
+        "topic": "iot/sensor",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt_local_09",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "store_sensor_09"
+            ]
+        ]
+    },
+    {
+        "id": "store_sensor_09",
+        "type": "function",
+        "z": "flow_rest_api_09",
+        "name": "Simpan Data Sensor",
+        "func": "var data = msg.payload;\ndata.received = new Date().toISOString();\n\nflow.set('lastSensor', data);\n\nvar history = flow.get('history') || [];\nhistory.push(data);\nif (history.length > 50) history.shift();\nflow.set('history', history);\n\nvar threshold = flow.get('threshold') || 30;\n\nif (Number(data.suhu) > threshold) {\n    node.warn(\"PERINGATAN! Suhu melewati batas: \" + data.suhu + \"°C\");\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 100,
+        "wires": [
+            [
+                "debug_sensor_09"
+            ]
+        ]
+    },
+    {
+        "id": "debug_sensor_09",
+        "type": "debug",
+        "z": "flow_rest_api_09",
+        "name": "Log Sensor",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 630,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "get_suhu_09",
+        "type": "http in",
+        "z": "flow_rest_api_09",
+        "name": "GET /api/suhu",
+        "url": "/api/suhu",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 160,
+        "y": 210,
+        "wires": [
+            [
+                "response_suhu_09"
+            ]
+        ]
+    },
+    {
+        "id": "response_suhu_09",
+        "type": "function",
+        "z": "flow_rest_api_09",
+        "name": "Build Response Suhu",
+        "func": "var data = flow.get('lastSensor') || {suhu:null, kelembaban:null, timestamp:null};\nmsg.payload = {status:'success', data:data, server_time:new Date().toISOString()};\nmsg.headers = {'Access-Control-Allow-Origin':'*'};\nreturn msg;",
+        "outputs": 1,
+        "x": 400,
+        "y": 210,
+        "wires": [
+            [
+                "http_response_suhu_09"
+            ]
+        ]
+    },
+    {
+        "id": "http_response_suhu_09",
+        "type": "http response",
+        "z": "flow_rest_api_09",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 640,
+        "y": 210,
+        "wires": []
+    },
+    {
+        "id": "get_history_09",
+        "type": "http in",
+        "z": "flow_rest_api_09",
+        "name": "GET /api/history",
+        "url": "/api/history",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 160,
+        "y": 290,
+        "wires": [
+            [
+                "response_history_09"
+            ]
+        ]
+    },
+    {
+        "id": "response_history_09",
+        "type": "function",
+        "z": "flow_rest_api_09",
+        "name": "Build Response History",
+        "func": "var history = flow.get('history') || [];\nmsg.payload = {status:'success', count:history.length, data:history};\nmsg.headers = {'Access-Control-Allow-Origin':'*'};\nreturn msg;",
+        "outputs": 1,
+        "x": 400,
+        "y": 290,
+        "wires": [
+            [
+                "http_response_history_09"
+            ]
+        ]
+    },
+    {
+        "id": "http_response_history_09",
+        "type": "http response",
+        "z": "flow_rest_api_09",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 640,
+        "y": 290,
+        "wires": []
+    },
+    {
+        "id": "post_control_09",
+        "type": "http in",
+        "z": "flow_rest_api_09",
+        "name": "POST /api/kontrol",
+        "url": "/api/kontrol",
+        "method": "post",
+        "upload": false,
+        "skipBodyParsing": false,
+        "swaggerDoc": "",
+        "x": 160,
+        "y": 390,
+        "wires": [
+            [
+                "process_control_09"
+            ]
+        ]
+    },
+    {
+        "id": "process_control_09",
+        "type": "function",
+        "z": "flow_rest_api_09",
+        "name": "Validasi & Publish",
+        "func": "var body = msg.payload || {};\nif (!body.device || !body.action) {\n    msg.statusCode = 400;\n    msg.payload = {status:'error', message:'device dan action wajib diisi'};\n    msg.headers = {'Access-Control-Allow-Origin':'*'};\n    return [msg, null];\n}\nvar mqttMsg = {payload:body, topic:'iot/kontrol'};\nmsg.statusCode = 200;\nmsg.payload = {status:'success', message:'Perintah terkirim', sent:body};\nmsg.headers = {'Access-Control-Allow-Origin':'*'};\nreturn [msg, mqttMsg];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 410,
+        "y": 390,
+        "wires": [
+            [
+                "http_response_control_09"
+            ],
+            [
+                "mqtt_publish_09"
+            ]
+        ]
+    },
+    {
+        "id": "http_response_control_09",
+        "type": "http response",
+        "z": "flow_rest_api_09",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 650,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "mqtt_publish_09",
+        "type": "mqtt out",
+        "z": "flow_rest_api_09",
+        "name": "Publish Kontrol",
+        "topic": "",
+        "qos": "0",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt_local_09",
+        "x": 650,
+        "y": 430,
+        "wires": []
+    },
+    {
+        "id": "http_threshold_09",
+        "type": "http in",
+        "z": "flow_rest_api_09",
+        "name": "PUT /api/threshold",
+        "url": "/api/threshold",
+        "method": "put",
+        "upload": false,
+        "x": 150,
+        "y": 520,
+        "wires": [
+            [
+                "function_threshold_09"
+            ]
+        ]
+    },
+    {
+        "id": "function_threshold_09",
+        "type": "function",
+        "z": "flow_rest_api_09",
+        "name": "Set Batas Suhu",
+        "func": "var threshold = Number(msg.payload.threshold);\nif (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {\n    msg.statusCode = 400;\n    msg.payload = {status:'error', message:'Threshold harus berupa angka 0 sampai 100'};\n} else {\n    flow.set('threshold', threshold);\n    msg.statusCode = 200;\n    msg.payload = {status:'success', message:'Batas suhu berhasil diatur', threshold:threshold};\n}\nmsg.headers = {'Access-Control-Allow-Origin':'*'};\nreturn msg;",
+        "outputs": 1,
+        "x": 410,
+        "y": 520,
+        "wires": [
+            [
+                "response_threshold_09"
+            ]
+        ]
+    },
+    {
+        "id": "response_threshold_09",
+        "type": "http response",
+        "z": "flow_rest_api_09",
+        "name": "Response Threshold",
+        "statusCode": "",
+        "headers": {},
+        "x": 670,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "mqtt_local_09",
+        "type": "mqtt-broker",
+        "name": "Mosquitto Local",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "node-red-backend-09",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true
+    }
+]
